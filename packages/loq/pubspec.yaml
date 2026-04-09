@@ -1,0 +1,23 @@
+name: loq
+description: >-
+  Structured logging for Dart. Pipeline architecture with pluggable handlers,
+  context propagation via Zones, and OpenTelemetry-ready. Works everywhere —
+  server, Flutter, CLI, web.
+version: 0.0.1
+homepage: https://github.com/fatalaa/loq
+repository: https://github.com/fatalaa/loq/tree/main/packages/loq
+issue_tracker: https://github.com/fatalaa/loq/issues
+topics:
+  - logging
+  - structured-logging
+  - observability
+  - opentelemetry
+
+environment:
+  sdk: ^3.6.0
+
+resolution: workspace
+
+dev_dependencies:
+  test: ^1.31.0
+  very_good_analysis: ^10.2.0

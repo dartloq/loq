@@ -1,0 +1,22 @@
+# Dart
+.dart_tool/
+build/
+pubspec_overrides.yaml
+
+# Melos
+.melos/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Generated
+*.g.dart

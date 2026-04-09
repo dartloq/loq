@@ -1,0 +1,41 @@
+# Root pubspec — workspace config, not published.
+name: loq_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+workspace:
+  - packages/loq
+
+dev_dependencies:
+  melos: ^7.5.0
+
+melos:
+  repository: https://github.com/fatalaa/loq
+
+  scripts:
+    analyze:
+      run: dart analyze --fatal-infos
+      exec:
+        concurrency: 5
+      packageFilters:
+        dirExists: lib
+
+    format:
+      run: dart format --set-exit-if-changed .
+      exec:
+        concurrency: 5
+
+    test:
+      run: dart test
+      exec:
+        concurrency: 1
+        failFast: true
+      packageFilters:
+        dirExists: test
+
+    publish:dry:
+      run: dart pub publish --dry-run
+      exec:
+        concurrency: 1
