@@ -739,18 +739,29 @@ void main() {
 
     test('prints formatted message with time, level, and logger name', () {
       final lines = capturePrint(() {
-        Logger('svc', config: LogConfig(handlers: [ConsoleHandler(minLevel: Level.trace)]))
-            .info('hello');
+        Logger(
+          'svc',
+          config: LogConfig(
+            handlers: [ConsoleHandler(minLevel: Level.trace)],
+          ),
+        ).info('hello');
       });
 
       expect(lines, hasLength(1));
-      expect(lines.single, matches(RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3} \[INFO \] svc: hello$')));
+      expect(
+        lines.single,
+        matches(RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3} \[INFO \] svc: hello$')),
+      );
     });
 
     test('prints fields after pipe separator', () {
       final lines = capturePrint(() {
-        Logger('x', config: LogConfig(handlers: [ConsoleHandler(minLevel: Level.trace)]))
-            .info('msg', fields: {'a': 1, 'b': 'two'});
+        Logger(
+          'x',
+          config: LogConfig(
+            handlers: [ConsoleHandler(minLevel: Level.trace)],
+          ),
+        ).info('msg', fields: {'a': 1, 'b': 'two'});
       });
 
       expect(lines.single, contains('| a=1, b=two'));
@@ -758,8 +769,12 @@ void main() {
 
     test('omits logger name when null', () {
       final lines = capturePrint(() {
-        Logger(null, config: LogConfig(handlers: [ConsoleHandler(minLevel: Level.trace)]))
-            .warn('no name');
+        Logger(
+          null,
+          config: LogConfig(
+            handlers: [ConsoleHandler(minLevel: Level.trace)],
+          ),
+        ).warn('no name');
       });
 
       expect(lines.single, matches(RegExp(r'\[WARN \] no name$')));
@@ -768,8 +783,12 @@ void main() {
     test('prints error and stackTrace on separate lines', () {
       final st = StackTrace.current;
       final lines = capturePrint(() {
-        Logger('x', config: LogConfig(handlers: [ConsoleHandler(minLevel: Level.trace)]))
-            .error('oops', error: 'boom', stackTrace: st);
+        Logger(
+          'x',
+          config: LogConfig(
+            handlers: [ConsoleHandler(minLevel: Level.trace)],
+          ),
+        ).error('oops', error: 'boom', stackTrace: st);
       });
 
       expect(lines, hasLength(3));

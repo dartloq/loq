@@ -1,16 +1,23 @@
 # loq
 
+[![CI](https://github.com/dartloq/loq/actions/workflows/ci.yml/badge.svg)](https://github.com/dartloq/loq/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/dartloq/loq/graph/badge.svg?token=7WTPMV87PF)](https://codecov.io/gh/dartloq/loq)
+[![pub](https://img.shields.io/pub/v/loq.svg)](https://pub.dev/packages/loq)
+[![license](https://img.shields.io/github/license/dartloq/loq.svg)](LICENSE)
+
 Structured logging for Dart. Pipeline architecture, OTel-ready, works everywhere.
 
 ## Packages
 
-| Package | pub.dev | Description |
-|---------|---------|-------------|
-| [loq](packages/loq/) | [![pub](https://img.shields.io/pub/v/loq.svg)](https://pub.dev/packages/loq) | Core structured logging |
-| loq_otel | *coming soon* | OpenTelemetry log bridge |
-| loq_flutter | *coming soon* | Flutter lifecycle & navigation context |
-| loq_crashlytics | *coming soon* | Firebase Crashlytics adapter |
-| loq_sentry | *coming soon* | Sentry adapter |
+| Package | pub.dev | Coverage | Description |
+|---------|---------|----------|-------------|
+| [loq](packages/loq/) | [![pub](https://img.shields.io/pub/v/loq.svg)](https://pub.dev/packages/loq) | [![codecov](https://codecov.io/gh/dartloq/loq/graph/badge.svg?token=7WTPMV87PF&flags[0]=loq)](https://codecov.io/gh/dartloq/loq?flags[0]=loq) | Core structured logging |
+| loq_otel | *coming soon* | — | OpenTelemetry log bridge |
+| loq_flutter | *coming soon* | — | Flutter lifecycle & navigation context |
+| loq_crashlytics | *coming soon* | — | Firebase Crashlytics adapter |
+| loq_shelf | *coming soon* | — | Shelf / Dart Frog middleware |
+| loq_serverpod | *coming soon* | — | Serverpod integration |
+| loq_sentry | *coming soon* | — | Sentry adapter |
 
 ## Quick example
 
@@ -34,7 +41,7 @@ withLogContext({'traceId': 'xyz'}, () async {
 
 ```bash
 # Clone and setup
-git clone https://github.com/fatalaa/loq.git
+git clone https://github.com/dartloq/loq.git
 cd loq
 dart pub get
 melos bootstrap
