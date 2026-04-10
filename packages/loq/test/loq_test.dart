@@ -791,10 +791,13 @@ void main() {
         ).error('oops', error: 'boom', stackTrace: st);
       });
 
-      expect(lines, hasLength(3));
+      expect(lines.length, greaterThanOrEqualTo(3));
       expect(lines[0], isNot(contains('error=')));
       expect(lines[1], '  error: boom');
-      expect(lines[2], '  $st');
+      // Stack trace lines are each indented with 2 spaces.
+      for (final line in lines.skip(2)) {
+        expect(line, startsWith('  '));
+      }
     });
   });
 

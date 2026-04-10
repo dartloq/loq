@@ -138,6 +138,33 @@ log.info('request completed', fields: {'path': '/users', 'status': 200});
 // {"time":"2026-04-09T12:34:56.789Z","level":"info","msg":"request completed","logger":"api","path":"/users","status":200}
 ```
 
+## Thread safety
+
+Dart is single-threaded per isolate, so loq is inherently safe within one isolate — no mutexes or locks needed.
+
+For **cross-isolate** logging, use `IsolateHandler` to ship records from worker isolates to the main isolate:
+
+```dart
+// Main isolate — receive and handle
+final receivePort = ReceivePort();
+receivePort.listen((message) {
+  final record = IsolateHandler.deserialize(message as Map<String, Object?>);
+  mainHandler.handle(record);
+});
+
+// Worker isolate — send via callback
+void worker(SendPort sendPort) {
+  LogConfig.configure(handlers: [IsolateHandler(sendPort.send)]);
+  Logger('worker').info('processing', fields: {'itemId': 42});
+}
+```
+
+Key points:
+
+- `LogConfig.global`, handlers, and Zone context are **per-isolate** — they don't transfer across isolate boundaries.
+- `Lazy` fields are resolved before `Record` creation, so closures never cross isolate boundaries.
+- `BufferedHandler` guards against re-entrant flushes with an internal `_flushing` flag, preventing timer-triggered and threshold-triggered flushes from racing.
+
 ## Ecosystem (planned)
 
 | Package | Description |

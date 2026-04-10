@@ -14,4 +14,18 @@
 /// See the [README](https://pub.dev/packages/loq) for full documentation.
 library;
 
-export 'src/loq_base.dart';
+export 'src/buffered_handler.dart';
+export 'src/console_handler.dart';
+export 'src/field_group.dart';
+export 'src/handler.dart';
+export 'src/isolate_handler.dart';
+export 'src/json_handler.dart';
+export 'src/lazy.dart';
+export 'src/level.dart';
+export 'src/log_config.dart';
+export 'src/logger.dart';
+export 'src/multi_handler.dart';
+export 'src/processors.dart';
+export 'src/record.dart';
+export 'src/source_location.dart';
+export 'src/zone_context.dart';
