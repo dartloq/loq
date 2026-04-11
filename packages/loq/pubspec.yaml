@@ -14,7 +14,7 @@ topics:
   - opentelemetry
 
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.5.0
 
 resolution: workspace
 

@@ -3,7 +3,7 @@ name: loq_workspace
 publish_to: none
 
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.5.0
 
 workspace:
   - packages/loq
@@ -37,5 +37,10 @@ melos:
 
     publish:dry:
       run: dart pub publish --dry-run
+      exec:
+        concurrency: 1
+
+    publish:
+      run: dart pub publish
       exec:
         concurrency: 1
