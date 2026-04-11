@@ -4,9 +4,9 @@ description: >-
   context propagation via Zones, and OpenTelemetry-ready. Works everywhere —
   server, Flutter, CLI, web.
 version: 0.1.0
-homepage: https://github.com/fatalaa/loq
-repository: https://github.com/fatalaa/loq/tree/main/packages/loq
-issue_tracker: https://github.com/fatalaa/loq/issues
+homepage: https://github.com/dartloq/loq
+repository: https://github.com/dartloq/loq/tree/main/packages/loq
+issue_tracker: https://github.com/dartloq/loq/issues
 topics:
   - logging
   - structured-logging
