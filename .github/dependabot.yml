@@ -8,3 +8,7 @@ updates:
     directory: /packages/loq
     schedule:
       interval: weekly
+  - package-ecosystem: pub
+    directory: /packages/loq_shelf
+    schedule:
+      interval: weekly

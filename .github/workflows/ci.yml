@@ -32,8 +32,12 @@ jobs:
         run: melos run analyze
 
   test:
-    name: Test
+    name: Test (${{ matrix.package }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [loq, loq_shelf]
     steps:
       - uses: actions/checkout@v6
 
@@ -51,7 +55,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd packages/loq
+          cd packages/${{ matrix.package }}
           dart pub global activate coverage
           dart test --coverage=coverage
           dart pub global run coverage:format_coverage \
@@ -63,7 +67,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
-          files: packages/loq/coverage/lcov.info
-          flags: loq
+          files: packages/${{ matrix.package }}/coverage/lcov.info
+          flags: ${{ matrix.package }}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
