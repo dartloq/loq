@@ -59,4 +59,28 @@ extension type const Level(int value) {
         fatal => 'fatal',
         _ => 'level($value)',
       };
+
+  /// Parses a standard level name (case-insensitive). Returns `null`
+  /// for unknown input.
+  ///
+  /// Useful for reading log levels from env vars or config files:
+  ///
+  /// ```dart
+  /// final level = Level.tryParse(Platform.environment['LOG_LEVEL'] ?? '');
+  /// LogConfig.configure(handlers: [
+  ///   ConsoleHandler(minLevel: level ?? Level.info),
+  /// ]);
+  /// ```
+  ///
+  /// Accepts the six built-in names and the alias `'warning'` for
+  /// [warn]. Custom levels are not parsed.
+  static Level? tryParse(String name) => switch (name.toLowerCase().trim()) {
+        'trace' => trace,
+        'debug' => debug,
+        'info' => info,
+        'warn' || 'warning' => warn,
+        'error' => error,
+        'fatal' => fatal,
+        _ => null,
+      };
 }

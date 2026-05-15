@@ -3,7 +3,7 @@ description: >-
   Structured logging for Dart. Pipeline architecture with pluggable handlers,
   context propagation via Zones, and OpenTelemetry-ready. Works everywhere —
   server, Flutter, CLI, web.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/dartloq/loq
 repository: https://github.com/dartloq/loq/tree/main/packages/loq
 issue_tracker: https://github.com/dartloq/loq/issues

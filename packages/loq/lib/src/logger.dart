@@ -17,17 +17,30 @@ import 'package:loq/src/source_location.dart';
 /// ```
 class Logger {
   /// Creates a logger with the given [name].
+  ///
+  /// If [config] is omitted, the logger resolves [LogConfig.global] at
+  /// every log call. This means `LogConfig.configure()` updates take
+  /// effect immediately for all loggers that did not pin an explicit
+  /// config. If [config] is supplied, that config wins for the lifetime
+  /// of the logger.
   Logger(this.name, {LogConfig? config})
       : _context = const {},
-        _config = config ?? LogConfig.global;
+        _explicitConfig = config;
 
-  Logger._bound(this.name, this._context, this._config);
+  Logger._bound(this.name, this._context, this._explicitConfig);
 
   /// The logger name, used as a source/category identifier.
   final String? name;
 
   final Map<String, Object?> _context;
-  final LogConfig _config;
+
+  /// Per-logger config override. `null` means "defer to [LogConfig.global]
+  /// at log time."
+  final LogConfig? _explicitConfig;
+
+  /// Resolves the effective config: the explicit override if set,
+  /// otherwise the current [LogConfig.global].
+  LogConfig get _config => _explicitConfig ?? LogConfig.global;
 
   /// Whether any handler is interested in records at [level].
   ///
@@ -44,9 +57,26 @@ class Logger {
 
   /// Returns a new [Logger] that includes [fields] in every record.
   ///
-  /// The original logger is not mutated.
+  /// The original logger is not mutated. The new logger inherits the
+  /// original's config-override decision: if the parent had an explicit
+  /// config, the bound logger uses the same explicit config; otherwise
+  /// the bound logger also resolves [LogConfig.global] lazily.
   Logger withFields(Map<String, Object?> fields) =>
-      Logger._bound(name, {..._context, ...fields}, _config);
+      Logger._bound(name, {..._context, ...fields}, _explicitConfig);
+
+  /// Returns a new [Logger] whose name has [suffix] appended with a
+  /// dot. Inherits this logger's context and config-override decision.
+  ///
+  /// ```dart
+  /// final db = Logger('app').named('db');           // 'app.db'
+  /// final q  = db.named('queries');                  // 'app.db.queries'
+  /// ```
+  ///
+  /// If this logger has no name, [suffix] becomes the new name.
+  Logger named(String suffix) {
+    final newName = name == null ? suffix : '$name.$suffix';
+    return Logger._bound(newName, _context, _explicitConfig);
+  }
 
   /// Log at an arbitrary [level]. Use this for custom levels.
   ///
@@ -113,15 +143,29 @@ class Logger {
   }
 
   void _log(Level level, String message, Map<String, Object?>? callFields) {
-    if (!_config.handlers.any((h) => h.isEnabled(level))) return;
+    // Resolve config once per call so all reads within this log event
+    // see a consistent snapshot.
+    final config = _config;
+    final interested = config.handlers.where((h) {
+      try {
+        return h.isEnabled(level);
+        // Containment: a misbehaving handler must not break logging
+        // for sibling handlers or the host.
+        // ignore: avoid_catches_without_on_clauses
+      } catch (e, st) {
+        config.onHandlerError(h, e, st);
+        return false;
+      }
+    }).toList();
+    if (interested.isEmpty) return;
 
     // Capture source before any other work so the frame offset is stable.
     // skipFrames: 0 = _log, 1 = info/error/log/etc, 2 = caller.
-    final source = _config.captureSourceLocation
+    final source = config.captureSourceLocation
         ? SourceLocation.parse(StackTrace.current, skipFrames: 2)
         : null;
 
-    final zoneFields = _config.zoneAccessor?.call(Zone.current);
+    final zoneFields = config.zoneAccessor?.call(Zone.current);
 
     final merged = <String, Object?>{
       ...?zoneFields,
@@ -134,25 +178,27 @@ class Logger {
       (k, v) => MapEntry(k, v is Lazy ? v.value : v),
     );
 
-    var record = Record(
-      time: DateTime.now(),
-      level: level,
-      message: message,
-      fields: allFields,
-      loggerName: name,
-      source: source,
-      zone: Zone.current,
+    final record = config.processors.fold<Record?>(
+      Record(
+        time: DateTime.now(),
+        level: level,
+        message: message,
+        fields: allFields,
+        loggerName: name,
+        source: source,
+        zone: Zone.current,
+      ),
+      (rec, processor) => rec != null ? processor(rec) : null,
     );
+    if (record == null) return;
 
-    for (final processor in _config.processors) {
-      final result = processor(record);
-      if (result == null) return;
-      record = result;
-    }
-
-    for (final handler in _config.handlers) {
-      if (handler.isEnabled(level)) {
-        handler.handle(record);
+    for (final h in interested) {
+      try {
+        h.handle(record);
+        // Same containment as the isEnabled check above.
+        // ignore: avoid_catches_without_on_clauses
+      } catch (e, st) {
+        config.onHandlerError(h, e, st);
       }
     }
   }

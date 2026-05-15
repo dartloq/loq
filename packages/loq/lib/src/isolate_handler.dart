@@ -69,12 +69,15 @@ class IsolateHandler implements Handler {
     return fields.map((k, v) => MapEntry(k, _coerce(v)));
   }
 
-  Object? _coerce(Object? v) {
-    if (v is Lazy) return _coerce(v.value);
-    if (v is FieldGroup) return _coerceFields(v.fields);
-    if (v == null || v is String || v is num || v is bool) return v;
-    if (v is List) return v.map(_coerce).toList();
-    if (v is Map) return v.map((k, v) => MapEntry(k.toString(), _coerce(v)));
-    return v.toString();
-  }
+  Object? _coerce(Object? v) => switch (v) {
+        Lazy() => _coerce(v.value),
+        FieldGroup() => _coerceFields(v.fields),
+        null || String() || num() || bool() => v,
+        DateTime() => v.toIso8601String(),
+        Duration() => v.inMilliseconds,
+        Uri() => v.toString(),
+        List() => v.map(_coerce).toList(),
+        Map() => v.map((k, v) => MapEntry(k.toString(), _coerce(v))),
+        _ => v.toString(),
+      };
 }

@@ -707,6 +707,59 @@ void main() {
       expect(globalHandler.records, isEmpty);
       expect(localHandler.records, hasLength(1));
     });
+
+    test('logger resolves global lazily — configure after construction', () {
+      // Logger created BEFORE configure() — should still pick up the
+      // post-configure handler at log time, not snapshot the default.
+      final log = Logger('late');
+
+      final handler = TestHandler();
+      LogConfig.configure(handlers: [handler]);
+
+      log.info('hello');
+
+      expect(handler.records, hasLength(1));
+      expect(handler.records.single.message, 'hello');
+    });
+
+    test('explicit per-logger config is pinned, not affected by configure', () {
+      final pinned = TestHandler();
+      final log = Logger('pinned', config: LogConfig(handlers: [pinned]));
+
+      final later = TestHandler();
+      LogConfig.configure(handlers: [later]);
+
+      log.info('hello');
+
+      // Explicit config wins over later global changes.
+      expect(pinned.records, hasLength(1));
+      expect(later.records, isEmpty);
+    });
+
+    test('withFields inherits the lazy-resolution behavior', () {
+      final log = Logger('lazy').withFields({'k': 'v'});
+
+      final handler = TestHandler();
+      LogConfig.configure(handlers: [handler]);
+
+      log.info('hello');
+
+      expect(handler.records, hasLength(1));
+      expect(handler.records.single.fields['k'], 'v');
+    });
+
+    test('withFields inherits pinned config', () {
+      final pinned = TestHandler();
+      final log = Logger('pinned', config: LogConfig(handlers: [pinned]))
+          .withFields({'k': 'v'});
+
+      LogConfig.configure(handlers: [TestHandler()]);
+
+      log.info('hello');
+
+      expect(pinned.records, hasLength(1));
+      expect(pinned.records.single.fields['k'], 'v');
+    });
   });
 
   // -------------------------------------------------------------------------

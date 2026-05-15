@@ -90,5 +90,26 @@ void main() {
       await handler.flush();
       await handler.close();
     });
+
+    test('DateTime / Duration / Uri coerce to transport-safe forms', () {
+      final messages = <Object?>[];
+      Logger(
+        'worker',
+        config: LogConfig(handlers: [IsolateHandler(messages.add)]),
+      ).info(
+        'typed',
+        fields: {
+          'when': DateTime.utc(2026, 5, 15, 10, 30),
+          'elapsed': const Duration(milliseconds: 1500),
+          'src': Uri.parse('https://example.com/api?q=1'),
+        },
+      );
+
+      final fields =
+          (messages.first! as Map)['fields']! as Map<String, Object?>;
+      expect(fields['when'], '2026-05-15T10:30:00.000Z');
+      expect(fields['elapsed'], 1500);
+      expect(fields['src'], 'https://example.com/api?q=1');
+    });
   });
 }

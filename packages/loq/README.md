@@ -52,6 +52,25 @@ void main() {
 }
 ```
 
+Loggers resolve `LogConfig.global` lazily at every log call, so the order of `LogConfig.configure()` and `Logger()` doesn't matter — a logger created before `configure()` runs picks up the new config on its next log call. Pin a config to a specific logger by passing `Logger('app', config: LogConfig(...))`; that logger then ignores subsequent global changes.
+
+Read the log level from an env var with `Level.tryParse`:
+
+```dart
+final level = Level.tryParse(Platform.environment['LOG_LEVEL'] ?? '');
+LogConfig.configure(handlers: [
+  ConsoleHandler(minLevel: level ?? Level.info),
+]);
+```
+
+Flush buffered handlers at shutdown:
+
+```dart
+await LogConfig.shutdown();
+```
+
+Misbehaving handlers don't crash the host — `isEnabled()` and `handle()` exceptions are caught and surfaced via `LogConfig`'s `onHandlerError` (default prints a `loq:`-prefixed diagnostic; override to redirect to Sentry, stderr, etc.).
+
 ## Bound loggers
 
 Attach context that flows through every subsequent log call:
@@ -62,6 +81,13 @@ final reqLog = log.withFields({'requestId': 'abc-123', 'userId': 42});
 
 reqLog.info('handling request');       // includes requestId, userId
 reqLog.warn('slow query', fields: {'ms': 340});  // includes all three
+```
+
+For subsystem-scoped loggers, `named()` appends a dotted suffix:
+
+```dart
+final dbLog = Logger('app').named('db');           // 'app.db'
+final queryLog = dbLog.named('queries');           // 'app.db.queries'
 ```
 
 ## Zone context
@@ -106,7 +132,38 @@ LogConfig.configure(
 
 ## Handlers
 
-Handlers are the output backends. Loq ships with `ConsoleHandler` (dev) and `JsonHandler` (production). Write your own by implementing the `Handler` interface:
+Handlers are the output backends. Loq ships with `ConsoleHandler` (dev) and `JsonHandler` (production).
+
+`ConsoleHandler` can color the level token with ANSI escapes via `useColor: true`. Off by default to avoid escape sequences in non-TTY contexts (CI logs, file redirection). Wire detection at your app entrypoint:
+
+```dart
+import 'dart:io';
+
+LogConfig.configure(handlers: [
+  ConsoleHandler(
+    useColor: stdout.supportsAnsiEscapes &&
+        Platform.environment['NO_COLOR'] == null,
+  ),
+]);
+```
+
+Color scheme follows the standard convention: gray (trace), cyan (debug), green (info), yellow (warn), red (error), bright-red bold (fatal). Custom levels fall into the nearest band by severity.
+
+Override per level via `levelColors` (partial overrides keep the rest of the defaults):
+
+```dart
+ConsoleHandler(
+  useColor: true,
+  levelColors: const {
+    Level.info: '\x1B[35m',          // magenta INFO
+    Level(11): '\x1B[1;94m',         // bright bold blue for a custom notice level
+  },
+)
+```
+
+Custom levels are looked up by exact match first, then by their nearest standard band (e.g. `Level(11)` falls under `Level.info` if no exact entry exists).
+
+Write your own handler by implementing the `Handler` interface:
 
 ```dart
 class MyHandler implements Handler {
@@ -136,6 +193,17 @@ log.info('request completed', fields: {'path': '/users', 'status': 200});
 
 // Output:
 // {"time":"2026-04-09T12:34:56.789Z","level":"info","msg":"request completed","logger":"api","path":"/users","status":200}
+```
+
+DateTime, Duration, and Uri field values are normalized automatically: DateTime → ISO 8601 (`toIso8601String()`), Duration → integer milliseconds, Uri → canonical string.
+
+Override the DateTime format via `dateTimeFormatter` — applies to both `Record.time` and any DateTime field value, so your pipeline sees consistent timestamps:
+
+```dart
+// Epoch milliseconds for SIEM ingest
+JsonHandler(
+  dateTimeFormatter: (dt) => dt.millisecondsSinceEpoch.toString(),
+)
 ```
 
 ## Thread safety

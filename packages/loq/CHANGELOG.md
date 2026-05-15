@@ -1,3 +1,91 @@
+## 0.1.1 (2026-05-15)
+
+### Logger
+- `LogConfig.global` is now resolved lazily on every log call instead
+  of being snapshotted at construction. `LogConfig.configure()` updates
+  take effect immediately for any logger that did not pin an explicit
+  config — order between `Logger()` and `LogConfig.configure()` no
+  longer matters. Explicit `config:` passed to `Logger()` still pins
+  for that logger's lifetime and propagates through `withFields`.
+- Added `Logger.named(String suffix)` for subsystem-scoped logging.
+  Appends a dotted suffix and inherits the parent's bound context and
+  config-override decision. Chains: `Logger('app').named('db')` →
+  `'app.db'`.
+
+### LogConfig
+- Added `LogConfig.copyWith()` for deriving a config that overrides
+  specific fields while inheriting the rest. Closes the silent-drop
+  footgun where the bare `LogConfig(...)` constructor reset every
+  unspecified field to its default:
+  ```dart
+  Logger('hot', config: LogConfig.global.copyWith(
+    processors: [sample(10)],
+  ))
+  ```
+- Added `LogConfig.shutdown()` — closes every handler in the current
+  global config in parallel. App-shutdown helper so buffered records
+  reach their destinations.
+- Added `onHandlerError` callback (with default reporter). Exceptions
+  thrown by `Handler.isEnabled()` or `Handler.handle()` are now caught
+  and routed to this callback rather than propagated to the caller —
+  a misbehaving handler no longer breaks logging for siblings or the
+  host. Default prints a `loq:`-prefixed diagnostic via `print()`;
+  override to redirect to Sentry, stderr, etc.
+
+### Level
+- Added `Level.tryParse(String)` for reading level names from env
+  vars or config files. Case-insensitive, trims whitespace, accepts
+  the six standard names plus `'warning'` as an alias for `warn`.
+  Returns `null` for unknown input.
+
+### ConsoleHandler
+- Added `useColor` constructor flag for ANSI-colored level output
+  (gray / cyan / green / yellow / red / bright-red bold for trace
+  through fatal). Default `false` to avoid emitting escape sequences
+  in non-TTY contexts. Wire detection at your app entrypoint:
+  ```dart
+  ConsoleHandler(
+    useColor: stdout.supportsAnsiEscapes &&
+        Platform.environment['NO_COLOR'] == null,
+  )
+  ```
+- Added `levelColors` constructor parameter for overriding the
+  default palette per level. Partial overrides keep the rest of the
+  defaults. Custom levels look up by exact match first, then fall
+  through to the nearest band's override or default:
+  ```dart
+  ConsoleHandler(
+    useColor: true,
+    levelColors: const {
+      Level.info: '\x1B[35m',     // magenta
+      Level(11): '\x1B[1;94m',    // custom notice level
+    },
+  )
+  ```
+
+### JsonHandler & IsolateHandler
+- Type-aware normalization for common Dart types:
+  - `DateTime` → ISO 8601 string.
+  - `Duration` → integer milliseconds.
+  - `Uri` → canonical string.
+
+  Previously these all hit the `v.toString()` fallback — `DateTime`
+  in particular rendered as the non-ISO `'2026-05-15 10:00:00.000'`
+  form, which most log pipelines reject.
+
+### JsonHandler
+- Added `dateTimeFormatter` constructor parameter for customizing how
+  `Record.time` and any DateTime field value is rendered. Defaults
+  to `DateTime.toIso8601String`. One handler-level setting controls
+  both paths, so the entire JSON stream has a consistent shape:
+  ```dart
+  JsonHandler(
+    dateTimeFormatter: (dt) => dt.millisecondsSinceEpoch.toString(),
+  )
+  ```
+  `IsolateHandler` deliberately omits this — records round-trip back
+  via `deserialize`, which requires ISO 8601 for the time field.
+
 ## 0.1.0
 
 ### New types

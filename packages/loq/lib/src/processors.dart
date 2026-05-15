@@ -8,13 +8,12 @@ Processor filterByLevel(Level minLevel) =>
     (record) => record.level >= minLevel ? record : null;
 
 /// Redacts field values by key.
-Processor redact(Set<String> keys, {String replacement = '***'}) => (record) {
-      final redacted = Map<String, Object?>.of(record.fields);
-      for (final key in keys) {
-        if (redacted.containsKey(key)) redacted[key] = replacement;
-      }
-      return record.copyWith(fields: redacted);
-    };
+Processor redact(Set<String> keys, {String replacement = '***'}) =>
+    (record) => record.copyWith(
+          fields: record.fields.map(
+            (k, v) => MapEntry(k, keys.contains(k) ? replacement : v),
+          ),
+        );
 
 /// Passes through approximately 1 in [n] records.
 Processor sample(int n) {

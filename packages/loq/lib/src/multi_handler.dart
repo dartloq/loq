@@ -24,13 +24,9 @@ class MultiHandler implements Handler {
   bool isEnabled(Level level) => handlers.any((h) => h.isEnabled(level));
 
   @override
-  void handle(Record record) {
-    for (final handler in handlers) {
-      if (handler.isEnabled(record.level)) {
-        handler.handle(record);
-      }
-    }
-  }
+  void handle(Record record) => handlers
+      .where((h) => h.isEnabled(record.level))
+      .forEach((h) => h.handle(record));
 
   /// Flushes all sub-handlers in parallel.
   @override
