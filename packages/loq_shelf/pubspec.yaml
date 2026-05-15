@@ -1,0 +1,27 @@
+name: loq_shelf
+description: >-
+  Structured request logging middleware for Shelf, powered by loq. Drop-in
+  replacement for logRequests() with structured fields, zone context,
+  and configurable log levels.
+version: 0.1.0
+homepage: https://github.com/dartloq/loq
+repository: https://github.com/dartloq/loq/tree/main/packages/loq_shelf
+issue_tracker: https://github.com/dartloq/loq/issues
+topics:
+  - logging
+  - shelf
+  - middleware
+  - structured-logging
+
+environment:
+  sdk: ^3.5.0
+
+resolution: workspace
+
+dependencies:
+  loq: ^0.1.0
+  shelf: ^1.4.0
+
+dev_dependencies:
+  test: ^1.31.0
+  very_good_analysis: ^10.2.0
