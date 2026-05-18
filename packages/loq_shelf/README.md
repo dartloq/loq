@@ -25,6 +25,8 @@ Response handleUser(Request request) {
 }
 ```
 
+> **Note vs `loq_drift`.** `loq_shelf` binds request fields into the zone on its own, because the middleware wraps the user's handler. `loq_drift`'s interceptor sits *below* the user's transaction body, so it can't bind anything on its own. `loq_drift` users wrap blocks themselves with `withLogContext` if they want per-transaction correlation.
+
 Sample output (ConsoleHandler):
 
 ```
@@ -139,6 +141,8 @@ loqMiddleware(
 
 ### Skip noisy endpoints
 
+`skip:` bypasses the middleware entirely: no logs **and** no `withLogContext` binding, so any log emitted from the handler won't carry the request fields either.
+
 ```dart
 loqMiddleware(
   skip: (req) {
@@ -147,6 +151,8 @@ loqMiddleware(
   },
 )
 ```
+
+> **Note vs `loq_drift`.** `loq_drift`'s `skipLog:` only drops the log; the underlying query still runs (it has to). The `Log` suffix marks the narrower scope. If you work with both packages, treat the names as deliberately different to remind you that `loq_drift` can't skip its own work.
 
 ### Slow request threshold
 
