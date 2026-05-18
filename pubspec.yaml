@@ -8,6 +8,7 @@ environment:
 workspace:
   - packages/loq
   - packages/loq_shelf
+  - packages/loq_drift
 
 dev_dependencies:
   melos: ^7.5.0

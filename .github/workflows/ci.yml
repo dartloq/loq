@@ -31,6 +31,11 @@ jobs:
       - name: Analyze
         run: melos run analyze
 
+  # Default test job for packages that don't need external services.
+  # Packages with special requirements (system libraries, service
+  # containers, Flutter SDK, etc.) get their own job below. They
+  # install their extras first, then invoke the same composite action
+  # via `uses: ./.github/actions/test-package`.
   test:
     name: Test (${{ matrix.package }})
     runs-on: ubuntu-latest
@@ -40,34 +45,54 @@ jobs:
         package: [loq, loq_shelf]
     steps:
       - uses: actions/checkout@v6
-
-      - uses: dart-lang/setup-dart@v1.7.2
+      - uses: ./.github/actions/test-package
         with:
-          sdk: stable
+          package: ${{ matrix.package }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Install melos
-        run: dart pub global activate melos
+  # loq_drift needs libsqlite3 for the default test run (sqlite is
+  # preinstalled on ubuntu-latest; the explicit apt-get is
+  # belt-and-suspenders) and a postgres service container for the
+  # tagged postgres smoke tests. Kept in its own job so the postgres
+  # container doesn't spin up on every matrix leg.
+  test-drift:
+    name: Test (loq_drift)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
 
-      - name: Bootstrap
-        run: |
-          dart pub get
-          melos bootstrap
+      - name: Install libsqlite3
+        run: sudo apt-get install -y libsqlite3-0
 
-      - name: Run tests with coverage
-        run: |
-          cd packages/${{ matrix.package }}
-          dart pub global activate coverage
-          dart test --coverage=coverage
-          dart pub global run coverage:format_coverage \
-            --lcov \
-            --in=coverage \
-            --out=coverage/lcov.info \
-            --report-on=lib
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+      - uses: ./.github/actions/test-package
         with:
-          files: packages/${{ matrix.package }}/coverage/lcov.info
-          flags: ${{ matrix.package }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          package: loq_drift
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+      # Postgres integration tests are tagged and skipped by default
+      # (see packages/loq_drift/dart_test.yaml). `--run-skipped`
+      # overrides the skip marker. Coverage is not captured here:
+      # postgres tests hit the same lib/src/ paths the default run
+      # already covers, so the extra coverage from this step is ~0.
+      - name: Run postgres integration tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        run: |
+          cd packages/loq_drift
+          dart test --tags postgres --run-skipped

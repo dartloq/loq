@@ -1,0 +1,56 @@
+name: 'Test loq package'
+description: >-
+  Bootstraps the melos workspace, runs `dart test --coverage` for one
+  package, formats the result as LCOV, and uploads to Codecov tagged
+  with the package's name. Used by every per-package test job in
+  ci.yml so the standard test flow lives in one place.
+
+  Callers must `actions/checkout` first (the composite's action.yml
+  lives in the repo). Callers with extra system requirements
+  (libsqlite3, a postgres service, etc.) install / start those
+  before invoking this action; `dart test` runs inside this action.
+
+inputs:
+  package:
+    description: 'Package directory name under packages/ (e.g. loq_drift).'
+    required: true
+  codecov-token:
+    description: 'Codecov upload token. Pass `${{ secrets.CODECOV_TOKEN }}`.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: dart-lang/setup-dart@v1.7.2
+      with:
+        sdk: stable
+
+    - name: Install melos
+      shell: bash
+      run: dart pub global activate melos
+
+    - name: Bootstrap
+      shell: bash
+      run: |
+        dart pub get
+        melos bootstrap
+
+    - name: Run tests with coverage
+      shell: bash
+      run: |
+        cd packages/${{ inputs.package }}
+        dart pub global activate coverage
+        dart test --coverage=coverage
+        dart pub global run coverage:format_coverage \
+          --lcov \
+          --in=coverage \
+          --out=coverage/lcov.info \
+          --report-on=lib
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v6
+      with:
+        files: packages/${{ inputs.package }}/coverage/lcov.info
+        flags: ${{ inputs.package }}
+        token: ${{ inputs.codecov-token }}
+        fail_ci_if_error: false

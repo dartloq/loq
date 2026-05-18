@@ -1,0 +1,14 @@
+# Tests tagged `postgres` require a running PostgreSQL instance. They
+# are excluded from the default `dart test` run so local developers
+# without postgres available don't see spurious failures.
+#
+# To run them locally:
+#   docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+#   dart test --tags postgres
+#
+# CI configures a postgres service container and invokes them via
+# `dart test --tags postgres` as a separate step.
+
+tags:
+  postgres:
+    skip: "requires running postgres; run with `dart test --tags postgres`"
