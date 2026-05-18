@@ -1,0 +1,58 @@
+# Codecov configuration.
+#
+# One flag per published package. Each runs in its own CI job and
+# uploads coverage with the matching flag. Coverage targets are set
+# to `auto` (match the base branch) with a 1% threshold so small
+# refactors don't trigger spurious failures.
+#
+# Reference: https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+      loq:
+        flags:
+          - loq
+        target: auto
+        threshold: 1%
+      loq_shelf:
+        flags:
+          - loq_shelf
+        target: auto
+        threshold: 1%
+      loq_drift:
+        flags:
+          - loq_drift
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+# `paths` tells Codecov which files in the repo belong to each flag,
+# so the per-flag dashboard isn't polluted with unrelated coverage.
+# `carryforward: true` preserves the last known coverage when a CI run
+# uploads only some flags (e.g. when only one matrix branch changed).
+flags:
+  loq:
+    paths:
+      - packages/loq/lib/
+    carryforward: true
+  loq_shelf:
+    paths:
+      - packages/loq_shelf/lib/
+    carryforward: true
+  loq_drift:
+    paths:
+      - packages/loq_drift/lib/
+    carryforward: true
+
+# Auto-comment on PRs with the coverage diff per flag.
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false

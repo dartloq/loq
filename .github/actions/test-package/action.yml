@@ -15,7 +15,9 @@ inputs:
     description: 'Package directory name under packages/ (e.g. loq_drift).'
     required: true
   codecov-token:
-    description: 'Codecov upload token. Pass `${{ secrets.CODECOV_TOKEN }}`.'
+    description: >-
+      Codecov upload token. Pass the CODECOV_TOKEN repository secret
+      from the calling workflow.
     required: true
 
 runs:
