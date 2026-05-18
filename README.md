@@ -15,6 +15,7 @@ Click a package name for its full README — API reference, configuration exampl
 |---------|---------|----------|-------------|
 | [loq](packages/loq/README.md) | [![pub](https://img.shields.io/pub/v/loq.svg)](https://pub.dev/packages/loq) | [![codecov](https://codecov.io/gh/dartloq/loq/graph/badge.svg?token=7WTPMV87PF&flags[0]=loq)](https://codecov.io/gh/dartloq/loq?flags[0]=loq) | Core structured logging |
 | [loq_shelf](packages/loq_shelf/README.md) | [![pub](https://img.shields.io/pub/v/loq_shelf.svg)](https://pub.dev/packages/loq_shelf) | [![codecov](https://codecov.io/gh/dartloq/loq/graph/badge.svg?token=7WTPMV87PF&flags[0]=loq_shelf)](https://codecov.io/gh/dartloq/loq?flags[0]=loq_shelf) | Shelf / Dart Frog / Jaspr middleware |
+| [loq_drift](packages/loq_drift/README.md) | [![pub](https://img.shields.io/pub/v/loq_drift.svg)](https://pub.dev/packages/loq_drift) | [![codecov](https://codecov.io/gh/dartloq/loq/graph/badge.svg?token=7WTPMV87PF&flags[0]=loq_drift)](https://codecov.io/gh/dartloq/loq?flags[0]=loq_drift) | Drift query logging interceptor |
 | loq_otel | *coming soon* | — | OpenTelemetry log bridge |
 | loq_flutter | *coming soon* | — | Flutter lifecycle & navigation context |
 | loq_crashlytics | *coming soon* | — | Firebase Crashlytics adapter |
