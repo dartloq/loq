@@ -5,6 +5,12 @@ description: >-
   with the package's name. Used by every per-package test job in
   ci.yml so the standard test flow lives in one place.
 
+  Installs the Flutter SDK because the workspace contains a Flutter
+  package (loq_flutter); `flutter pub get` is the only resolver that
+  can handle a mixed Dart + Flutter workspace. Dart-only packages
+  still run their tests via `dart test` (the Dart binary ships with
+  Flutter).
+
   Callers must `actions/checkout` first (the composite's action.yml
   lives in the repo). Callers with extra system requirements
   (libsqlite3, a postgres service, etc.) install / start those
@@ -23,9 +29,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: dart-lang/setup-dart@v1.7.2
+    - uses: subosito/flutter-action@v2
       with:
-        sdk: stable
+        channel: stable
+        cache: true
+        pub-cache: true
 
     - name: Install melos
       shell: bash
@@ -34,7 +42,7 @@ runs:
     - name: Bootstrap
       shell: bash
       run: |
-        dart pub get
+        flutter pub get
         melos bootstrap
 
     - name: Run tests with coverage
