@@ -1,3 +1,10 @@
+## 0.1.1
+
+- No functional changes vs 0.1.0; the shipped `lib/` is unchanged.
+  Cuts a release from a fully CI-verified commit (a test-suite
+  lint fix and the CI Flutter-SDK migration landed after 0.1.0 was
+  uploaded) and exercises the new tag-triggered publish workflow.
+
 ## 0.1.0
 
 - Initial release.

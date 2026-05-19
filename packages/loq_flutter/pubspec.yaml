@@ -5,7 +5,7 @@ description: >-
   flushes handlers on pause and detach, and an init helper that wires
   FlutterError, PlatformDispatcher, and zone-guard error capture with
   chain-and-restore semantics.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/dartloq/loq
 repository: https://github.com/dartloq/loq/tree/main/packages/loq_flutter
 issue_tracker: https://github.com/dartloq/loq/issues
