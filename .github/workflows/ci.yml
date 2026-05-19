@@ -12,24 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      # The workspace contains a Flutter package (loq_flutter), so
-      # `dart pub get` can't resolve it. Use Flutter's SDK, which
-      # bundles Dart, so `melos run analyze` (which runs
-      # `dart analyze` per package) still works.
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-          pub-cache: true
-
-      - name: Install melos
-        run: dart pub global activate melos
-
-      - name: Bootstrap
-        run: |
-          flutter pub get
-          melos bootstrap
+      - uses: ./.github/actions/bootstrap-workspace
 
       - name: Check formatting
         run: melos run format
@@ -103,26 +86,16 @@ jobs:
           cd packages/loq_drift
           dart test --tags postgres --run-skipped
 
-  # loq_flutter lives in the workspace alongside the pure-Dart
-  # packages, but needs the Flutter SDK to resolve and test. It gets
-  # its own job that sets up Flutter and runs `flutter test --coverage`
-  # (which writes lcov directly — no format_coverage step needed).
+  # loq_flutter needs `flutter test --coverage` (which writes lcov
+  # directly) instead of the `dart test` + format_coverage flow the
+  # other packages use; doesn't fit the test-package composite.
+  # Shares the bootstrap-workspace composite with the rest.
   test-flutter:
     name: Test (loq_flutter)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-          pub-cache: true
-
-      - name: Resolve dependencies
-        run: |
-          cd packages/loq_flutter
-          flutter pub get
+      - uses: ./.github/actions/bootstrap-workspace
 
       - name: Analyze
         run: |

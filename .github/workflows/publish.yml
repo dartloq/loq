@@ -1,0 +1,99 @@
+name: Publish to pub.dev
+
+# OIDC-trusted publish triggered by version tags like
+# `loq_flutter-v0.1.2`. The tag's package name selects which package
+# under packages/ to publish; the version is verified against the
+# package's pubspec.yaml before any pub call.
+#
+# pub.dev side: each published package's "Automated publishing" admin
+# page must trust this repo and the tag pattern
+# `<package>-v{{version}}` pointing at this workflow file.
+
+on:
+  push:
+    tags:
+      - '*-v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  publish:
+    name: Publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    # Required for OIDC token exchange with pub.dev.
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need history so we can check the tag is reachable from
+          # main. A shallow clone wouldn't have the merge-base.
+          fetch-depth: 0
+
+      - name: Parse package and version from tag
+        id: parse
+        run: |
+          tag="${{ github.ref_name }}"
+          package="${tag%-v*}"
+          version="${tag##*-v}"
+          if [ -z "$package" ] || [ -z "$version" ]; then
+            echo "::error::Could not parse tag '$tag'"
+            exit 1
+          fi
+          if [ ! -d "packages/$package" ]; then
+            echo "::error::No packages/$package directory in repo"
+            exit 1
+          fi
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing packages/$package version $version"
+
+      - name: Require tag to be on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "${{ github.sha }}" origin/main; then
+            echo "::error::Tag commit ${{ github.sha }} is not on main"
+            exit 1
+          fi
+
+      - uses: ./.github/actions/bootstrap-workspace
+
+      - name: Verify pubspec version matches tag
+        run: |
+          cd packages/${{ steps.parse.outputs.package }}
+          pubspec_version=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          if [ "$pubspec_version" != "${{ steps.parse.outputs.version }}" ]; then
+            echo "::error::Tag version ${{ steps.parse.outputs.version }} does not match pubspec version $pubspec_version"
+            exit 1
+          fi
+
+      # Re-run the gate even though main's CI already passed. Tags can
+      # theoretically be applied to commits whose CI was flaky or
+      # bypassed; the publish must come from a clean state.
+      - name: Analyze
+        run: |
+          cd packages/${{ steps.parse.outputs.package }}
+          if grep -q 'sdk: flutter' pubspec.yaml; then
+            flutter analyze --fatal-infos
+          else
+            dart analyze --fatal-infos
+          fi
+
+      - name: Test
+        run: |
+          cd packages/${{ steps.parse.outputs.package }}
+          if grep -q 'sdk: flutter' pubspec.yaml; then
+            flutter test
+          else
+            dart test
+          fi
+
+      - name: Dry-run publish
+        run: |
+          cd packages/${{ steps.parse.outputs.package }}
+          dart pub publish --dry-run
+
+      - name: Publish
+        run: |
+          cd packages/${{ steps.parse.outputs.package }}
+          dart pub publish --force

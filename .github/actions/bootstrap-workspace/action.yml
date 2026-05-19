@@ -1,0 +1,30 @@
+name: 'Bootstrap loq workspace'
+description: >-
+  Installs the Flutter SDK (which bundles Dart), activates melos, and
+  resolves the workspace via `flutter pub get` plus `melos bootstrap`.
+  Shared prefix for every CI / publish job that needs the workspace
+  resolved.
+
+  Flutter is required because the workspace contains a Flutter
+  package (loq_flutter); `dart pub get` can't resolve it. Dart-only
+  packages still run their own tools (`dart analyze`, `dart test`)
+  via the Dart binary bundled with Flutter.
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        cache: true
+        pub-cache: true
+
+    - name: Install melos
+      shell: bash
+      run: dart pub global activate melos
+
+    - name: Bootstrap
+      shell: bash
+      run: |
+        flutter pub get
+        melos bootstrap
