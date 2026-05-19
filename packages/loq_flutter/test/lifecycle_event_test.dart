@@ -118,7 +118,7 @@ void main() {
         locales: [es],
         previousLocales: [en],
         defaults: {
-          'loq.app.locales': ['es']
+          'loq.app.locales': ['es'],
         },
       );
       expect(event.locales, [es]);
