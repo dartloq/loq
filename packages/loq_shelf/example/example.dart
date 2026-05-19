@@ -1,19 +1,19 @@
 // Showcase server exercising every loq_shelf capability:
 //
-//   skip                       — bypass health checks
-//   slowRequestThreshold       — flag and escalate slow requests
-//   routeResolver              — bounded http.route cardinality
-//   clientIpResolver           — X-Forwarded-For resolution
-//   levelResolver              — custom per-response level logic
-//   captureRequestHeaders      — opt-in header allowlist (zone-propagated)
-//   captureResponseHeaders     — response header allowlist
-//   captureQueryParams         — url.query with default redaction
-//   redactRequestHeaders       — extend the built-in redaction set
-//   fields                     — bind tenant from header
-//   responseFields             — derive cache_hit on completion
-//   errorFields                — classify retry-worthiness
-//   startMessage / *Message    — event names downstream tools key off
-//   withLogContext (in handler)— nested scopes inherit + extend context
+//   skip                       bypass health checks
+//   slowRequestThreshold       flag and escalate slow requests
+//   routeResolver              bounded http.route cardinality
+//   clientIpResolver           X-Forwarded-For resolution
+//   levelResolver              custom per-event level logic
+//   captureRequestHeaders      opt-in header allowlist (zone-propagated)
+//   captureResponseHeaders     response header allowlist
+//   captureQueryParams         url.query with default redaction
+//   redactRequestHeaders       extend the built-in redaction set
+//   fields                     unified per-event hook
+//                              (ShelfRequestStartEvent / ShelfResponseEvent)
+//   errorFields                ShelfRequestErrorEvent annotation
+//   startMessage / *Message    event names downstream tools key off
+//   withLogContext (in handler) nested scopes inherit and extend context
 //
 // Run with: `dart run example/example.dart`
 // Try the curls printed on startup.
@@ -58,8 +58,8 @@ Future<Response> _handleError(Request request) =>
     throw const FormatException('bad input');
 
 Future<Response> _handleTimeout(Request request) async {
-  // Simulate waiting on something before giving up — produces a
-  // realistic non-zero duration_ms on the error log.
+  // Simulate waiting on something before giving up so the error log
+  // shows a realistic non-zero duration_ms.
   await Future<void>.delayed(const Duration(milliseconds: 200));
   throw TimeoutException('upstream slow');
 }
@@ -97,7 +97,7 @@ String? _resolveClientIp(Request request) {
 
 void main() async {
   // Swap ConsoleHandler for JsonHandler() to get one structured JSON
-  // object per line — what you'd ship to Datadog/Elastic/Grafana.
+  // object per line, the shape you'd ship to Datadog/Elastic/Grafana.
   LogConfig.configure(
     handlers: [ConsoleHandler(minLevel: Level.trace)],
     zoneAccessor: defaultZoneAccessor,
@@ -111,28 +111,34 @@ void main() async {
     skip: (req) => req.requestedUri.path == '/healthz',
     slowRequestThreshold: const Duration(milliseconds: 500),
 
-    // ---- Field hooks (each receives `defaults`; compose or replace) ----
-    fields: (req, defaults) => {
-      ...defaults,
-      if (req.headers['x-tenant-id'] != null)
-        'tenant_id': req.headers['x-tenant-id'],
+    // ---- Field hooks ----
+    // One hook for every success-path event (start + response). Branch
+    // on event type to add context that only applies on one of them.
+    fields: (event) => switch (event) {
+      ShelfRequestStartEvent() => {
+          ...event.defaults,
+          if (event.request.headers['x-tenant-id'] != null)
+            'tenant_id': event.request.headers['x-tenant-id'],
+        },
+      ShelfResponseEvent(:final response) => {
+          ...event.defaults,
+          'cache_hit': response.headers['cache-status'] == 'HIT',
+        },
+      ShelfRequestErrorEvent() => event.defaults,
     },
-    responseFields: (response, elapsed, defaults) => {
-      ...defaults,
-      'cache_hit': response.headers['cache-status'] == 'HIT',
-    },
-    errorFields: (error, stack, elapsed, defaults) => {
-      ...defaults,
+    errorFields: (event, error, stack) => {
+      ...event.defaults,
       'error.retryable': error is TimeoutException || error is SocketException,
     },
 
     // ---- Resolvers (each returns T?; null falls back to defaults) ----
     routeResolver: _resolveRoute,
     clientIpResolver: _resolveClientIp,
-    // 404 is part of normal traffic for this API — don't pollute warn.
-    levelResolver: (response, elapsed, error) {
-      if (response?.statusCode == 404) return Level.info;
-      return null;
+    // 404 is part of normal traffic for this API, don't pollute warn.
+    levelResolver: (event, error) => switch (event) {
+      ShelfResponseEvent(:final response) when response.statusCode == 404 =>
+        Level.info,
+      _ => null,
     },
 
     // ---- Capture ----

@@ -3,7 +3,7 @@ description: >-
   Structured request logging middleware for Shelf, powered by loq. Drop-in
   replacement for logRequests() with structured fields, zone context,
   and configurable log levels.
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/dartloq/loq
 repository: https://github.com/dartloq/loq/tree/main/packages/loq_shelf
 issue_tracker: https://github.com/dartloq/loq/issues
@@ -19,7 +19,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  loq: ^0.1.0
+  loq: ^0.1.2
   shelf: ^1.4.0
 
 dev_dependencies:

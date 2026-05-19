@@ -16,3 +16,4 @@ library;
 import 'package:loq_shelf/src/loq_middleware.dart';
 
 export 'src/loq_middleware.dart';
+export 'src/shelf_log_event.dart';

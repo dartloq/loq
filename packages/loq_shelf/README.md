@@ -35,13 +35,30 @@ Sample output (ConsoleHandler):
 12:34:56.791 [INFO ] http: request completed | http.request.method=GET, url.path=/api/users, requestId=1, http.response.status_code=200, duration_ms=2
 ```
 
-## Default fields
+## Events and fields
 
-Each log event (start / completion / error) is built from a `defaults` map that includes everything the middleware would contribute. The corresponding `*Fields` callback (if supplied) receives this map and returns the final field set.
+Each log event is one of three sealed types:
 
-### Request log defaults
+- **`ShelfRequestStartEvent`** for the start log. Carries `request`, `defaults`; `elapsed` is `null`.
+- **`ShelfResponseEvent`** for the completion log. Carries `request`, `response`, `elapsed`, `defaults`.
+- **`ShelfRequestErrorEvent`** for the error log. Carries `request`, `elapsed`, `defaults`. The caught error and stack trace reach hooks through `errorFields:`'s extra positional parameters.
 
-Bound via `withLogContext` so downstream logs inherit them:
+The `fields:` hook receives the start and completion events; `errorFields:` receives the error event. Both return the final field map. Spread `...event.defaults` to keep the defaults; return a different map to replace. Branch on event type with `switch`:
+
+```dart
+fields: (event) => switch (event) {
+  ShelfRequestStartEvent() =>
+      {...event.defaults, 'phase': 'start'},
+  ShelfResponseEvent(:final response) =>
+      {...event.defaults, 'status_family': response.statusCode ~/ 100},
+  ShelfRequestErrorEvent() =>
+      event.defaults,
+},
+```
+
+### Request start defaults
+
+Also bound via `withLogContext` so downstream logs inherit them:
 
 | Field | Source |
 |-------|--------|
@@ -59,7 +76,9 @@ Bound via `withLogContext` so downstream logs inherit them:
 | `http.request.header.<lower>` | for each name in `captureRequestHeaders` (sensitive values masked) |
 | `url.query` | raw query string when `captureQueryParams: true` (sensitive values masked) |
 
-### Completion log defaults
+### Response defaults
+
+Inherit everything the start event carried, plus:
 
 | Field | Source |
 |-------|--------|
@@ -70,7 +89,9 @@ Bound via `withLogContext` so downstream logs inherit them:
 | `http.response.header.<lower>` | for each name in `captureResponseHeaders` |
 | `slow` | `true` when `slowRequestThreshold` is exceeded |
 
-### Error log defaults
+### Error defaults
+
+Inherit everything the start event carried, plus:
 
 | Field | Source |
 |-------|--------|
@@ -79,7 +100,7 @@ Bound via `withLogContext` so downstream logs inherit them:
 | `error.message` | `error.toString()` |
 | `slow` | `true` when `slowRequestThreshold` is exceeded |
 
-Loq's `Logger` always adds `error` (the caught `Object`) and `stackTrace` to the error log on a layer below `errorFields:` — replacing all fields with `errorFields: (_, __, ___, ____) => {}` will still include them.
+Loq's `Logger` always adds `error` (the caught `Object`) and `stackTrace` to the error log on a layer below `errorFields:`, so replacing all fields with `errorFields: (_, __, ___) => {}` will still include them.
 
 > `duration_ms` uses snake_case (industry convention across Datadog, Elastic, Logstash, etc.) rather than loq's usual camelCase.
 
@@ -111,7 +132,7 @@ loqMiddleware(
 
 ### Client IP from `X-Forwarded-For`
 
-By default `client.address` comes from the immediate socket. Behind a proxy or CDN, override with your own resolver — and validate the trusted proxy chain before trusting the header:
+By default `client.address` comes from the immediate socket. Behind a proxy or CDN, override with your own resolver, and validate the trusted proxy chain before trusting the header:
 
 ```dart
 loqMiddleware(
@@ -127,21 +148,23 @@ loqMiddleware(
 
 ### Level resolution
 
-`levelResolver` is the only level hook. It receives the response (or `null` on error), elapsed duration, and any caught error. Return `null` to fall back to the default mapping (5xx → `error`, 4xx → `warn`, else `info`; `error` for the error path). `slowRequestThreshold`'s warn-bump still stacks on top:
+`levelResolver` is the only level hook. It receives the typed event and any caught error (`null` on success). Return `null` to fall back to the per-event default (`Level.info` for start, status-family mapping for completion, `Level.error` for the error path). `slowRequestThreshold`'s warn-bump still stacks on top:
 
 ```dart
 loqMiddleware(
-  levelResolver: (response, elapsed, error) {
-    if (error is TimeoutException) return Level.warn;
-    if (response != null && response.statusCode >= 400) return Level.error;
-    return null;  // fall back to defaults
+  levelResolver: (event, error) => switch (event) {
+    ShelfResponseEvent(:final response) when response.statusCode == 404 =>
+      Level.info, // 404 is normal traffic for this service
+    ShelfRequestErrorEvent() when error is TimeoutException =>
+      Level.warn,
+    _ => null, // fall back to defaults
   },
 )
 ```
 
 ### Skip noisy endpoints
 
-`skip:` bypasses the middleware entirely: no logs **and** no `withLogContext` binding, so any log emitted from the handler won't carry the request fields either.
+`skip:` bypasses the middleware entirely: no logs and no `withLogContext` binding, so any log emitted from the handler won't carry the request fields either.
 
 ```dart
 loqMiddleware(
@@ -183,17 +206,21 @@ Opt-in. Adds `url.query` as the raw query string with sensitive values masked. P
 
 ```dart
 loqMiddleware(captureQueryParams: true)
-// /search?q=cats&page=2 → url.query: "q=cats&page=2"
-// /search?q=cats&api_key=secret → url.query: "q=cats&api_key=***"
+// /search?q=cats&page=2 -> url.query: "q=cats&page=2"
+// /search?q=cats&api_key=secret -> url.query: "q=cats&api_key=***"
 ```
 
-If you need structured access to specific keys downstream, pull them out via `fields:` instead:
+If you need structured access to specific keys downstream, pull them out from the `fields:` hook instead:
 
 ```dart
 loqMiddleware(
-  fields: (req, defaults) => {
-    ...defaults,
-    'tenant_id': req.requestedUri.queryParameters['tenant_id'],
+  fields: (event) => switch (event) {
+    ShelfRequestStartEvent() => {
+        ...event.defaults,
+        'tenant_id':
+            event.request.requestedUri.queryParameters['tenant_id'],
+      },
+    _ => event.defaults,
   },
 )
 ```
@@ -202,7 +229,7 @@ loqMiddleware(
 
 **Secure by default.** Captured request headers `authorization`, `proxy-authorization`, `cookie`, `x-api-key`, `x-auth-token` and response `set-cookie` are masked to `***`. When `captureQueryParams: true`, common token-bearing keys (`token`, `access_token`, `refresh_token`, `api_key`, `apikey`, `key`, `password`, `secret`, `signature`, `sig`) are also masked.
 
-The header key is preserved so presence is observable in logs. Override per category — empty set disables:
+The header key is preserved so presence is observable in logs. Override per category; empty set disables:
 
 ```dart
 loqMiddleware(
@@ -232,7 +259,7 @@ LogConfig.configure(
 );
 ```
 
-loq_shelf already masks captured HTTP headers inline; these constants exist so other loggers and processors can share the same threat model without rebuilding the prefix mapping. There's no equivalent constant for query params because `url.query` is a single string field — substring redaction is handled inline by the middleware.
+loq_shelf already masks captured HTTP headers inline; these constants exist so other loggers and processors can share the same threat model without rebuilding the prefix mapping. There's no equivalent constant for query params because `url.query` is a single string field whose contents (not key) carry the sensitive parts; substring redaction is handled inline by the middleware.
 
 ### Custom message strings
 
@@ -259,43 +286,46 @@ loqMiddleware(
 
 ### Customizing fields
 
-`fields:`, `responseFields:`, and `errorFields:` are the single transformation point for their respective logs. Each receives a `defaults` map containing everything the middleware would otherwise contribute — OTel core fields, captured headers, `url.query`, `slow` — and returns the final fields. Compose, filter, or fully replace; the callback's return value is final.
+`fields:` and `errorFields:` are the one transformation point for their respective events. Each receives a typed event and returns the final fields. Compose, filter, or fully replace:
 
 ```dart
-// Add fields on top of defaults
+// Add fields on top of defaults (applies to start and response)
 loqMiddleware(
-  fields: (req, defaults) => {
-    ...defaults,
-    'tenant_id': resolveTenant(req),
+  fields: (event) => {
+    ...event.defaults,
+    'tenant_id': resolveTenant(event.request),
   },
 )
 
 // Drop a default field
 loqMiddleware(
-  fields: (req, defaults) =>
-      Map.of(defaults)..remove('user_agent.original'),
+  fields: (event) =>
+      Map.of(event.defaults)..remove('user_agent.original'),
 )
 
-// Replace entirely (you opt out of OTel defaults)
+// Replace entirely (opts out of OTel defaults for both start and response)
 loqMiddleware(
-  fields: (req, _) => {
-    'method': req.method,
-    'path': req.requestedUri.path,
+  fields: (event) => {
+    'method': event.request.method,
+    'path': event.request.requestedUri.path,
   },
 )
 
-// Same composition pattern for responseFields
+// Per-event shaping with pattern matching
 loqMiddleware(
-  responseFields: (response, elapsed, defaults) => {
-    ...defaults,
-    'contentLength': response.headers['content-length'],
+  fields: (event) => switch (event) {
+    ShelfResponseEvent(:final response) => {
+        ...event.defaults,
+        'contentLength': response.headers['content-length'],
+      },
+    _ => event.defaults,
   },
 )
 
 // Annotate error logs based on the exception type
 loqMiddleware(
-  errorFields: (error, stack, elapsed, defaults) => {
-    ...defaults,
+  errorFields: (event, error, stack) => {
+    ...event.defaults,
     'error.retryable': error is TimeoutException || error is SocketException,
     if (error is HttpException) 'error.code': error.uri?.path,
   },
@@ -314,13 +344,16 @@ Middleware loqMiddleware({
   bool logStart = true,
   Duration? slowRequestThreshold,
   // Field hooks
-  Map<String, Object?> Function(Request request, Map<String, Object?> defaults)? fields,
-  Map<String, Object?> Function(Response response, Duration elapsed, Map<String, Object?> defaults)? responseFields,
-  Map<String, Object?> Function(Object error, StackTrace stack, Duration elapsed, Map<String, Object?> defaults)? errorFields,
+  Map<String, Object?> Function(ShelfLogEvent event)? fields,
+  Map<String, Object?> Function(
+    ShelfLogEvent event,
+    Object error,
+    StackTrace stackTrace,
+  )? errorFields,
   // Resolvers
   String? Function(Request request)? routeResolver,
   String? Function(Request request)? clientIpResolver,
-  Level? Function(Response? response, Duration elapsed, Object? error)? levelResolver,
+  Level? Function(ShelfLogEvent event, Object? error)? levelResolver,
   // Capture
   List<String>? captureRequestHeaders,
   List<String>? captureResponseHeaders,
@@ -344,15 +377,14 @@ Middleware loqMiddleware({
 | **Behavior** | | |
 | `skip` | `null` | Bypass middleware entirely when `true` |
 | `logStart` | `true` | Emit "request started" log |
-| `slowRequestThreshold` | `null` | Adds `slow: true` to defaults and bumps completion level to ≥ `warn` |
+| `slowRequestThreshold` | `null` | Adds `slow: true` to defaults and bumps completion level to >= `warn` |
 | **Field hooks** | | |
-| `fields` | identity | Transforms request-log defaults |
-| `responseFields` | identity | Transforms completion-log defaults |
-| `errorFields` | identity | Transforms error-log defaults |
+| `fields` | identity | Transforms start and completion defaults; receives the typed event |
+| `errorFields` | identity | Transforms error defaults; receives event, error, stack |
 | **Resolvers** | | |
 | `routeResolver` | `null` | Returns `http.route` template (e.g. `/users/{id}`) |
 | `clientIpResolver` | `shelf_io` connection info | Returns `client.address` |
-| `levelResolver` | `null` | Overrides level for completion and error (status-family / `Level.error` defaults) |
+| `levelResolver` | `null` | Overrides level for any event (status-family / `Level.info` / `Level.error` defaults) |
 | **Capture** | | |
 | `captureRequestHeaders` | `null` | Request header allowlist; output `http.request.header.<lowercase>` |
 | `captureResponseHeaders` | `null` | Response header allowlist; output `http.response.header.<lowercase>` |
