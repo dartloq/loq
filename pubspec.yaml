@@ -9,6 +9,7 @@ workspace:
   - packages/loq
   - packages/loq_shelf
   - packages/loq_drift
+  - packages/loq_flutter
 
 dev_dependencies:
   melos: ^7.5.0

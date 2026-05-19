@@ -1,0 +1,37 @@
+name: loq_flutter
+description: >-
+  Flutter integration for loq structured logging. Ships a Navigator
+  observer with ambient screen-name context, a lifecycle observer that
+  flushes handlers on pause and detach, and an init helper that wires
+  FlutterError, PlatformDispatcher, and zone-guard error capture with
+  chain-and-restore semantics.
+version: 0.1.0
+homepage: https://github.com/dartloq/loq
+repository: https://github.com/dartloq/loq/tree/main/packages/loq_flutter
+issue_tracker: https://github.com/dartloq/loq/issues
+topics:
+  - logging
+  - flutter
+  - structured-logging
+  - observability
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.16.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  loq: ^0.1.1
+
+dev_dependencies:
+  # auto_route / go_router are pulled in by test/integration/ only.
+  # Never imported from lib/.
+  auto_route: ^11.0.0
+  flutter_test:
+    sdk: flutter
+  go_router: ^17.0.0
+  very_good_analysis: ^10.2.0
+

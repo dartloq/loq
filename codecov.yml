@@ -28,6 +28,11 @@ coverage:
           - loq_drift
         target: auto
         threshold: 1%
+      loq_flutter:
+        flags:
+          - loq_flutter
+        target: auto
+        threshold: 1%
     patch:
       default:
         target: auto
@@ -49,6 +54,10 @@ flags:
   loq_drift:
     paths:
       - packages/loq_drift/lib/
+    carryforward: true
+  loq_flutter:
+    paths:
+      - packages/loq_flutter/lib/
     carryforward: true
 
 # Auto-comment on PRs with the coverage diff per flag.

@@ -96,3 +96,41 @@ jobs:
         run: |
           cd packages/loq_drift
           dart test --tags postgres --run-skipped
+
+  # loq_flutter lives in the workspace alongside the pure-Dart
+  # packages, but needs the Flutter SDK to resolve and test. It gets
+  # its own job that sets up Flutter and runs `flutter test --coverage`
+  # (which writes lcov directly — no format_coverage step needed).
+  test-flutter:
+    name: Test (loq_flutter)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: |
+          cd packages/loq_flutter
+          flutter pub get
+
+      - name: Analyze
+        run: |
+          cd packages/loq_flutter
+          flutter analyze --fatal-infos
+
+      - name: Run tests with coverage
+        run: |
+          cd packages/loq_flutter
+          flutter test --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: packages/loq_flutter/coverage/lcov.info
+          flags: loq_flutter
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
