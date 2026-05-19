@@ -43,7 +43,9 @@ void main() {
     });
 
     test('concurrent flush guard prevents double-flush', () async {
-      final batched = _SlowBufferedHandler()
+      final batched = _TestBufferedHandler(
+        writeDelay: const Duration(milliseconds: 50),
+      )
         ..handle(makeRecord('a'))
         ..handle(makeRecord('b'));
 
@@ -73,24 +75,15 @@ class _TestBufferedHandler extends BufferedHandler {
   _TestBufferedHandler({
     super.maxBufferSize,
     super.flushInterval,
+    this.writeDelay,
   });
 
+  final Duration? writeDelay;
   final List<List<Record>> batches = [];
 
   @override
   Future<void> writeAll(List<Record> records) async {
-    batches.add(records);
-  }
-}
-
-class _SlowBufferedHandler extends BufferedHandler {
-  _SlowBufferedHandler();
-
-  final List<List<Record>> batches = [];
-
-  @override
-  Future<void> writeAll(List<Record> records) async {
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (writeDelay != null) await Future<void>.delayed(writeDelay!);
     batches.add(records);
   }
 }

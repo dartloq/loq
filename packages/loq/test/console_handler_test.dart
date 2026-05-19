@@ -13,6 +13,17 @@ List<String> capturePrint(void Function() body) {
   return lines;
 }
 
+/// Minimal Record fixture for the color-rendering tests below: a fixed
+/// message and logger name, varying only by level.
+Record makeRecord(Level level) => Record(
+      time: DateTime(2024),
+      level: level,
+      message: 'msg',
+      fields: const {},
+      loggerName: 'app',
+      zone: Zone.current,
+    );
+
 void main() {
   group('ConsoleHandler (new features)', () {
     test('shows source location in output', () {
@@ -76,15 +87,6 @@ void main() {
   });
 
   group('ConsoleHandler (color support)', () {
-    Record makeRecord(Level level) => Record(
-          time: DateTime(2024),
-          level: level,
-          message: 'msg',
-          fields: const {},
-          loggerName: 'app',
-          zone: Zone.current,
-        );
-
     test('no escapes when useColor is false (default)', () {
       final lines = capturePrint(() {
         ConsoleHandler(minLevel: Level.trace).handle(makeRecord(Level.info));
@@ -179,15 +181,6 @@ void main() {
   });
 
   group('ConsoleHandler (custom level colors)', () {
-    Record makeRecord(Level level) => Record(
-          time: DateTime(2024),
-          level: level,
-          message: 'msg',
-          fields: const {},
-          loggerName: 'app',
-          zone: Zone.current,
-        );
-
     test('exact match for a built-in level overrides the default', () {
       final lines = capturePrint(() {
         ConsoleHandler(

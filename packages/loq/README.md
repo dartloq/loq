@@ -130,6 +130,27 @@ LogConfig.configure(
 );
 ```
 
+For per-scope filtering by logger name, use `levelByName`:
+
+```dart
+LogConfig.configure(
+  processors: [
+    levelByName({
+      'app.db.queries': Level.trace,  // most specific kept loudest
+      'app.db':         Level.warn,
+      'app':            Level.info,
+      '':               Level.error,   // root catch-all
+    }),
+  ],
+);
+
+// Logger('app.db.queries.select') → keep trace+
+// Logger('app.db.connection')     → keep warn+
+// Logger('payments')              → keep error+ (hits the '' catch-all)
+```
+
+Longest matching prefix wins, walking dotted logger names parent-by-parent. Pairs with `Logger.named()` chains. Records with a null logger name fall back to `defaultLevel`.
+
 ## Handlers
 
 Handlers are the output backends. Loq ships with `ConsoleHandler` (dev) and `JsonHandler` (production).
@@ -232,6 +253,32 @@ Key points:
 - `LogConfig.global`, handlers, and Zone context are **per-isolate** — they don't transfer across isolate boundaries.
 - `Lazy` fields are resolved before `Record` creation, so closures never cross isolate boundaries.
 - `BufferedHandler` guards against re-entrant flushes with an internal `_flushing` flag, preventing timer-triggered and threshold-triggered flushes from racing.
+
+## Testing
+
+For tests, install `RecordingHandler` as the only handler. It keeps records in memory so you can check them, and silences other output:
+
+```dart
+import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
+
+test('publishes the order', () {
+  final recorder = RecordingHandler();
+  LogConfig.configure(handlers: [recorder]);
+
+  service.publishOrder(...);
+
+  expect(recorder.count, 1);
+  expect(recorder.atOrAbove(Level.error), isEmpty);
+  expect(recorder.from('app.publish').first.fields['orderId'], 'abc');
+});
+```
+
+Filter getters: `at(level)`, `atOrAbove(level)`, `from(name)`, `withField(key)`, `withFieldValue(key, value)`, `messageContaining(pattern)`.
+
+Count helpers: `count`, `countAt(level)`, `countAtOrAbove(level)`.
+
+The `package:loq/testing.dart` sub-library is kept apart from `package:loq/loq.dart` so test helpers stay out of production code.
 
 ## Ecosystem (planned)
 

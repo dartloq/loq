@@ -1,4 +1,5 @@
 import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -41,7 +42,7 @@ void main() {
 
   group('SourceLocation in Logger', () {
     test('captures source when captureSourceLocation is true', () {
-      final handler = _SourceTestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -56,7 +57,7 @@ void main() {
     });
 
     test('source is null when captureSourceLocation is false', () {
-      final handler = _SourceTestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(handlers: [handler]),
@@ -65,20 +66,4 @@ void main() {
       expect(handler.records.single.source, isNull);
     });
   });
-}
-
-class _SourceTestHandler implements Handler {
-  final List<Record> records = [];
-
-  @override
-  bool isEnabled(Level level) => true;
-
-  @override
-  void handle(Record record) => records.add(record);
-
-  @override
-  Future<void> flush() async {}
-
-  @override
-  Future<void> close() async {}
 }

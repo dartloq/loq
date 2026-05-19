@@ -1,7 +1,6 @@
 import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
 import 'package:test/test.dart';
-
-import 'helpers.dart';
 
 void main() {
   group('Lazy', () {
@@ -33,7 +32,7 @@ void main() {
 
   group('Lazy in Logger', () {
     test('resolves Lazy values before Record creation', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(handlers: [handler]),
@@ -46,7 +45,7 @@ void main() {
 
     test('Lazy not resolved on early-out', () {
       var resolved = false;
-      final handler = TestHandler(minLevel: Level.error);
+      final handler = RecordingHandler(minLevel: Level.error);
       Logger(
         'x',
         config: LogConfig(handlers: [handler]),

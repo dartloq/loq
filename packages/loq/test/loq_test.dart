@@ -2,27 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
 import 'package:test/test.dart';
-
-/// A handler that captures records for testing.
-class TestHandler implements Handler {
-  TestHandler({this.minLevel = Level.trace});
-
-  final Level minLevel;
-  final List<Record> records = [];
-
-  @override
-  bool isEnabled(Level level) => level >= minLevel;
-
-  @override
-  void handle(Record record) => records.add(record);
-
-  @override
-  Future<void> flush() async {}
-
-  @override
-  Future<void> close() async {}
-}
 
 void main() {
   // -------------------------------------------------------------------------
@@ -141,11 +122,11 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('Logger', () {
-    late TestHandler handler;
+    late RecordingHandler handler;
     late Logger log;
 
     setUp(() {
-      handler = TestHandler();
+      handler = RecordingHandler();
       log = Logger('test', config: LogConfig(handlers: [handler]));
     });
 
@@ -217,10 +198,8 @@ void main() {
         ..error('oops')
         ..fatal('crash');
 
-      for (final r in handler.records) {
-        expect(r.fields.containsKey('error'), isFalse);
-        expect(r.fields.containsKey('stackTrace'), isFalse);
-      }
+      expect(handler.withField('error'), isEmpty);
+      expect(handler.withField('stackTrace'), isEmpty);
     });
 
     test('sets time close to now', () {
@@ -239,11 +218,11 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('Logger.withFields', () {
-    late TestHandler handler;
+    late RecordingHandler handler;
     late Logger log;
 
     setUp(() {
-      handler = TestHandler();
+      handler = RecordingHandler();
       log = Logger('svc', config: LogConfig(handlers: [handler]));
     });
 
@@ -252,9 +231,7 @@ void main() {
         ..info('a')
         ..info('b');
 
-      for (final r in handler.records) {
-        expect(r.fields['requestId'], 'r-1');
-      }
+      expect(handler.withFieldValue('requestId', 'r-1'), hasLength(2));
     });
 
     test('does not mutate the original logger', () {
@@ -285,7 +262,7 @@ void main() {
 
   group('early-out filtering', () {
     test('skips record creation when no handler is enabled', () {
-      final handler = TestHandler(minLevel: Level.error);
+      final handler = RecordingHandler(minLevel: Level.error);
       Logger('x', config: LogConfig(handlers: [handler]))
         ..info('ignored')
         ..error('kept');
@@ -295,8 +272,8 @@ void main() {
     });
 
     test('dispatches to only enabled handlers', () {
-      final infoHandler = TestHandler(minLevel: Level.info);
-      final errorHandler = TestHandler(minLevel: Level.error);
+      final infoHandler = RecordingHandler(minLevel: Level.info);
+      final errorHandler = RecordingHandler(minLevel: Level.error);
       Logger(
         'x',
         config: LogConfig(handlers: [infoHandler, errorHandler]),
@@ -316,7 +293,7 @@ void main() {
 
   group('processors', () {
     test('processor can transform records', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -330,7 +307,7 @@ void main() {
     });
 
     test('processor returning null drops the record', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -343,7 +320,7 @@ void main() {
     });
 
     test('processors run in order', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -360,7 +337,7 @@ void main() {
     });
 
     test('later processors see earlier mutations', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -377,7 +354,7 @@ void main() {
 
     test('null from first processor short-circuits the chain', () {
       var secondCalled = false;
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -403,7 +380,7 @@ void main() {
 
   group('filterByLevel', () {
     test('passes records at or above the level', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -421,7 +398,7 @@ void main() {
 
   group('redact', () {
     test('replaces matching field values', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -438,7 +415,7 @@ void main() {
     });
 
     test('uses custom replacement', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -453,7 +430,7 @@ void main() {
     });
 
     test('leaves non-matching fields untouched', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(
@@ -470,7 +447,7 @@ void main() {
 
   group('sample', () {
     test('keeps every Nth record', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       final log = Logger(
         'x',
         config: LogConfig(
@@ -495,10 +472,10 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('withLogContext', () {
-    late TestHandler handler;
+    late RecordingHandler handler;
 
     setUp(() {
-      handler = TestHandler();
+      handler = RecordingHandler();
     });
 
     test('injects zone fields into records', () {
@@ -631,7 +608,7 @@ void main() {
 
   group('field precedence', () {
     test('call-site > bound > zone', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       final log = Logger(
         'x',
         config: LogConfig(
@@ -666,7 +643,7 @@ void main() {
     });
 
     test('configure updates global config', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       LogConfig.configure(handlers: [handler]);
       expect(LogConfig.global.handlers, [handler]);
     });
@@ -680,7 +657,10 @@ void main() {
     });
 
     test('reset restores defaults', () {
-      LogConfig.configure(handlers: [TestHandler()], processors: [(r) => r]);
+      LogConfig.configure(
+        handlers: [RecordingHandler()],
+        processors: [(r) => r],
+      );
       LogConfig.reset();
       expect(LogConfig.global.handlers, hasLength(1));
       expect(LogConfig.global.handlers.first, isA<ConsoleHandler>());
@@ -688,7 +668,7 @@ void main() {
     });
 
     test('logger uses global config by default', () {
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       LogConfig.configure(handlers: [handler]);
 
       Logger('global').info('hello');
@@ -697,8 +677,8 @@ void main() {
     });
 
     test('per-logger config overrides global', () {
-      final globalHandler = TestHandler();
-      final localHandler = TestHandler();
+      final globalHandler = RecordingHandler();
+      final localHandler = RecordingHandler();
       LogConfig.configure(handlers: [globalHandler]);
 
       Logger('local', config: LogConfig(handlers: [localHandler]))
@@ -713,7 +693,7 @@ void main() {
       // post-configure handler at log time, not snapshot the default.
       final log = Logger('late');
 
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       LogConfig.configure(handlers: [handler]);
 
       log.info('hello');
@@ -723,10 +703,10 @@ void main() {
     });
 
     test('explicit per-logger config is pinned, not affected by configure', () {
-      final pinned = TestHandler();
+      final pinned = RecordingHandler();
       final log = Logger('pinned', config: LogConfig(handlers: [pinned]));
 
-      final later = TestHandler();
+      final later = RecordingHandler();
       LogConfig.configure(handlers: [later]);
 
       log.info('hello');
@@ -739,7 +719,7 @@ void main() {
     test('withFields inherits the lazy-resolution behavior', () {
       final log = Logger('lazy').withFields({'k': 'v'});
 
-      final handler = TestHandler();
+      final handler = RecordingHandler();
       LogConfig.configure(handlers: [handler]);
 
       log.info('hello');
@@ -749,11 +729,11 @@ void main() {
     });
 
     test('withFields inherits pinned config', () {
-      final pinned = TestHandler();
+      final pinned = RecordingHandler();
       final log = Logger('pinned', config: LogConfig(handlers: [pinned]))
           .withFields({'k': 'v'});
 
-      LogConfig.configure(handlers: [TestHandler()]);
+      LogConfig.configure(handlers: [RecordingHandler()]);
 
       log.info('hello');
 

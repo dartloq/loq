@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -31,7 +32,7 @@ void main() {
         captureSourceLocation: true,
       );
 
-      final newHandler = _SimpleHandler();
+      final newHandler = RecordingHandler();
       final derived = original.copyWith(handlers: [newHandler]);
 
       expect(derived.handlers, [newHandler]);
@@ -61,7 +62,7 @@ void main() {
 
     test('composes cleanly with global for per-logger overrides', () {
       LogConfig.configure(
-        handlers: [_SimpleHandler()],
+        handlers: [RecordingHandler()],
         captureSourceLocation: true,
       );
 
@@ -109,7 +110,7 @@ void main() {
     test('appends suffix with a dot', () {
       final db = Logger('app').named('db');
       // Verify by logging and inspecting record.
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       Logger('app', config: LogConfig(handlers: [handler]))
           .named('db')
           .info('hello');
@@ -119,7 +120,7 @@ void main() {
     });
 
     test('chains across multiple levels', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       Logger('a', config: LogConfig(handlers: [handler]))
           .named('b')
           .named('c')
@@ -128,7 +129,7 @@ void main() {
     });
 
     test('uses suffix alone when parent has no name', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       Logger(null, config: LogConfig(handlers: [handler]))
           .named('db')
           .info('hello');
@@ -136,7 +137,7 @@ void main() {
     });
 
     test('inherits bound fields', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       Logger('a', config: LogConfig(handlers: [handler]))
           .withFields({'tenant': 'acme'})
           .named('db')
@@ -163,11 +164,11 @@ void main() {
     test('handle() exceptions are routed to onHandlerError', () {
       final reports = <_HandlerError>[];
       final cfg = LogConfig(
-        handlers: [_ThrowingOnHandle(), _SimpleHandler()],
+        handlers: [_ThrowingOnHandle(), RecordingHandler()],
         onHandlerError: (h, e, st) => reports.add(_HandlerError(h, e)),
       );
-      // Sibling _SimpleHandler must still receive the record.
-      final sibling = cfg.handlers.last as _SimpleHandler;
+      // Sibling RecordingHandler must still receive the record.
+      final sibling = cfg.handlers.last as RecordingHandler;
 
       Logger('x', config: cfg).info('hello');
 
@@ -242,7 +243,7 @@ void main() {
 
   group('Logger.log() with custom levels', () {
     test('emits record with custom level', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       const notice = Level(10);
       Logger(
         'x',
@@ -254,7 +255,7 @@ void main() {
     });
 
     test('log() passes error and stackTrace as fields', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       final st = StackTrace.current;
       Logger(
         'x',
@@ -267,7 +268,7 @@ void main() {
     });
 
     test('log() works without optional parameters', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       Logger(
         'x',
         config: LogConfig(handlers: [handler]),
@@ -278,7 +279,7 @@ void main() {
     });
 
     test('log() merges fields with error and stackTrace', () {
-      final handler = _SimpleHandler();
+      final handler = RecordingHandler();
       final st = StackTrace.current;
       Logger(
         'x',
@@ -297,22 +298,6 @@ void main() {
       expect(fields['stackTrace'], st);
     });
   });
-}
-
-class _SimpleHandler implements Handler {
-  final List<Record> records = [];
-
-  @override
-  bool isEnabled(Level level) => true;
-
-  @override
-  void handle(Record record) => records.add(record);
-
-  @override
-  Future<void> flush() async {}
-
-  @override
-  Future<void> close() async {}
 }
 
 class _ClosableHandler implements Handler {

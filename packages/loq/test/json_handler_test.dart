@@ -1,22 +1,20 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:loq/loq.dart';
 import 'package:test/test.dart';
+
+import 'helpers.dart';
 
 void main() {
   group('JsonHandler (new features)', () {
     test('renders FieldGroup as nested JSON object', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
+        makeRecord(
+          'msg',
           fields: {
             'http': const FieldGroup({'method': 'GET', 'status': 200}),
           },
-          zone: Zone.current,
         ),
       );
 
@@ -29,13 +27,9 @@ void main() {
     test('includes source in JSON output', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
-          fields: {},
+        makeRecord(
+          'msg',
           source: const SourceLocation(file: 'app.dart', line: 10),
-          zone: Zone.current,
         ),
       );
 
@@ -45,15 +39,8 @@ void main() {
 
     test('omits source when absent', () {
       final lines = <String>[];
-      JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
-          fields: {},
-          zone: Zone.current,
-        ),
-      );
+      JsonHandler(minLevel: Level.trace, writer: lines.add)
+          .handle(makeRecord('msg'));
 
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
       expect(parsed.containsKey('source'), isFalse);
@@ -62,13 +49,7 @@ void main() {
     test('resolves Lazy values (belt-and-suspenders)', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
-          fields: {'lazy': Lazy(() => 'resolved')},
-          zone: Zone.current,
-        ),
+        makeRecord('msg', fields: {'lazy': Lazy(() => 'resolved')}),
       );
 
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -84,12 +65,10 @@ void main() {
     test('DateTime renders as ISO 8601 string', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
+        makeRecord(
+          'msg',
           time: DateTime.utc(2024),
-          level: Level.info,
-          message: 'msg',
           fields: {'when': DateTime.utc(2026, 5, 15, 10, 30)},
-          zone: Zone.current,
         ),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -99,12 +78,9 @@ void main() {
     test('Duration renders as milliseconds', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
+        makeRecord(
+          'msg',
           fields: {'elapsed': const Duration(milliseconds: 1500)},
-          zone: Zone.current,
         ),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -114,12 +90,9 @@ void main() {
     test('Uri renders as canonical string', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
+        makeRecord(
+          'msg',
           fields: {'src': Uri.parse('https://example.com/api?q=1')},
-          zone: Zone.current,
         ),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -133,13 +106,7 @@ void main() {
         writer: lines.add,
         dateTimeFormatter: (dt) => dt.millisecondsSinceEpoch.toString(),
       ).handle(
-        Record(
-          time: DateTime.utc(2026, 5, 15, 10, 30),
-          level: Level.info,
-          message: 'msg',
-          fields: const {},
-          zone: Zone.current,
-        ),
+        makeRecord('msg', time: DateTime.utc(2026, 5, 15, 10, 30)),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
       expect(
@@ -155,12 +122,10 @@ void main() {
         writer: lines.add,
         dateTimeFormatter: (dt) => 'epoch:${dt.millisecondsSinceEpoch}',
       ).handle(
-        Record(
+        makeRecord(
+          'msg',
           time: DateTime.utc(2024),
-          level: Level.info,
-          message: 'msg',
           fields: {'when': DateTime.utc(2026, 5, 15, 10, 30)},
-          zone: Zone.current,
         ),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -171,13 +136,7 @@ void main() {
     test('omitting dateTimeFormatter keeps the ISO 8601 default', () {
       final lines = <String>[];
       JsonHandler(minLevel: Level.trace, writer: lines.add).handle(
-        Record(
-          time: DateTime.utc(2026, 5, 15, 10, 30),
-          level: Level.info,
-          message: 'msg',
-          fields: const {},
-          zone: Zone.current,
-        ),
+        makeRecord('msg', time: DateTime.utc(2026, 5, 15, 10, 30)),
       );
       final parsed = jsonDecode(lines.first) as Map<String, dynamic>;
       expect(parsed['time'], '2026-05-15T10:30:00.000Z');

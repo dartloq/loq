@@ -1,3 +1,40 @@
+## 0.1.2 (2026-05-19)
+
+### Processors
+- Added `levelByName(rules, {defaultLevel})` for per-scope filtering by
+  dotted logger name. The longest matching prefix wins; the empty-string
+  key is a root catch-all. Records with a null logger name fall back to
+  `defaultLevel`. Pairs with `Logger.named()` chains and matches the
+  per-scope filter shape used by Java/Python/.NET logging:
+  ```dart
+  LogConfig.configure(processors: [
+    levelByName({
+      'app.db.queries': Level.trace,
+      'app.db':         Level.warn,
+      'app':            Level.info,
+      '':               Level.error,   // root catch-all
+    }),
+  ]);
+  ```
+
+### Testing (new sub-library `package:loq/testing.dart`)
+- Added `RecordingHandler` for test checks. Keeps records in memory and
+  offers filters (`at`, `atOrAbove`, `from`, `withField`,
+  `withFieldValue`, `messageContaining`) and counts (`count`, `countAt`,
+  `countAtOrAbove`). Install it as the only handler to silence other
+  output and capture everything for the test to look at:
+  ```dart
+  import 'package:loq/loq.dart';
+  import 'package:loq/testing.dart';
+
+  final recorder = RecordingHandler();
+  LogConfig.configure(handlers: [recorder]);
+  // ... run the code under test ...
+  expect(recorder.atOrAbove(Level.error), isEmpty);
+  ```
+  The sub-library is kept apart from `package:loq/loq.dart` so test
+  helpers stay out of production code.
+
 ## 0.1.1 (2026-05-15)
 
 ### Logger

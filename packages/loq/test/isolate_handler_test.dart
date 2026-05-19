@@ -1,7 +1,7 @@
-import 'dart:async';
-
 import 'package:loq/loq.dart';
 import 'package:test/test.dart';
+
+import 'helpers.dart';
 
 void main() {
   group('IsolateHandler', () {
@@ -27,14 +27,11 @@ void main() {
     test('coerces FieldGroup to nested map', () {
       final messages = <Object?>[];
       IsolateHandler(messages.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
+        makeRecord(
+          'msg',
           fields: {
             'http': const FieldGroup({'method': 'GET'}),
           },
-          zone: Zone.current,
         ),
       );
 
@@ -47,13 +44,7 @@ void main() {
     test('coerces non-primitive types to strings', () {
       final messages = <Object?>[];
       IsolateHandler(messages.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
-          fields: {'obj': Object()},
-          zone: Zone.current,
-        ),
+        makeRecord('msg', fields: {'obj': Object()}),
       );
 
       final data = messages.first! as Map<String, Object?>;
@@ -64,13 +55,7 @@ void main() {
     test('preserves null fields', () {
       final messages = <Object?>[];
       IsolateHandler(messages.add).handle(
-        Record(
-          time: DateTime(2024),
-          level: Level.info,
-          message: 'msg',
-          fields: {'nullable': null},
-          zone: Zone.current,
-        ),
+        makeRecord('msg', fields: {'nullable': null}),
       );
 
       final data = messages.first! as Map<String, Object?>;

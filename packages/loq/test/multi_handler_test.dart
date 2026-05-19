@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:loq/loq.dart';
+import 'package:loq/testing.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -8,8 +9,8 @@ import 'helpers.dart';
 void main() {
   group('MultiHandler', () {
     test('dispatches to all enabled handlers', () {
-      final h1 = TestHandler(minLevel: Level.info);
-      final h2 = TestHandler(minLevel: Level.error);
+      final h1 = RecordingHandler(minLevel: Level.info);
+      final h2 = RecordingHandler(minLevel: Level.error);
       MultiHandler([h1, h2]).handle(makeRecord('err', level: Level.error));
 
       expect(h1.records, hasLength(1));
@@ -17,8 +18,8 @@ void main() {
     });
 
     test('skips disabled handlers', () {
-      final h1 = TestHandler(minLevel: Level.info);
-      final h2 = TestHandler(minLevel: Level.error);
+      final h1 = RecordingHandler(minLevel: Level.info);
+      final h2 = RecordingHandler(minLevel: Level.error);
       MultiHandler([h1, h2]).handle(makeRecord('info'));
 
       expect(h1.records, hasLength(1));
@@ -26,8 +27,8 @@ void main() {
     });
 
     test('isEnabled returns true if any handler is enabled', () {
-      final h1 = TestHandler(minLevel: Level.error);
-      final h2 = TestHandler(minLevel: Level.info);
+      final h1 = RecordingHandler(minLevel: Level.error);
+      final h2 = RecordingHandler(minLevel: Level.info);
       final multi = MultiHandler([h1, h2]);
 
       expect(multi.isEnabled(Level.info), isTrue);
