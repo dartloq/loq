@@ -88,12 +88,25 @@ jobs:
             dart test
           fi
 
+      - name: Debug OIDC environment
+        run: |
+          echo "GITHUB_ACTIONS=${GITHUB_ACTIONS:-unset}"
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL present: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN present: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+yes}"
+          dart --version
+          which dart
+          flutter --version
+
       - name: Dry-run publish
         run: |
           cd packages/${{ steps.parse.outputs.package }}
           dart pub publish --dry-run
 
+      # Verbose + a short timeout: if dart-pub falls back to
+      # interactive auth, the runner won't sit blocked for 14
+      # minutes. Verbose output should show which auth path it took.
       - name: Publish
+        timeout-minutes: 2
         run: |
           cd packages/${{ steps.parse.outputs.package }}
-          dart pub publish --force
+          dart --verbose pub publish --force
